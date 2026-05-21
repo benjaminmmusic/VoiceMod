@@ -1,5 +1,7 @@
-# Claude Code local config
-.claude/
+# Claude Code: track shared settings, ignore everything else
+# (personal overrides go in .claude/settings.local.json; subagent workspaces etc. also ignored)
+.claude/*
+!.claude/settings.json
 
 # Log files
 *.log
