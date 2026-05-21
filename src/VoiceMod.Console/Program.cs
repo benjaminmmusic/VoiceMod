@@ -1,5 +1,5 @@
 using NAudio.CoreAudioApi;
-using NAudio.Wave;
+using VoiceMod.Core;
 using static System.Console;
 
 using var enumerator = new MMDeviceEnumerator();
@@ -10,33 +10,22 @@ var outputDevices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceSt
 var inputDevice = PromptForDevice("Input (microphone)", inputDevices);
 var outputDevice = PromptForDevice("Output (e.g. CABLE Input)", outputDevices);
 
-using var capture = new WasapiCapture(inputDevice, useEventSync: true, audioBufferMillisecondsLength: 20);
-
-var buffer = new BufferedWaveProvider(capture.WaveFormat)
-{
-    BufferDuration = TimeSpan.FromMilliseconds(200),
-    DiscardOnBufferOverflow = true,
-};
-
-using var output = new WasapiOut(outputDevice, AudioClientShareMode.Shared, useEventSync: true, latency: 30);
-
-capture.DataAvailable += (_, e) => buffer.AddSamples(e.Buffer, 0, e.BytesRecorded);
-
-output.Init(buffer);
+using var pipeline = new Pipeline(inputDevice, outputDevice);
 
 WriteLine();
 WriteLine($"Routing  {inputDevice.FriendlyName}");
 WriteLine($"     ->  {outputDevice.FriendlyName}");
-WriteLine($"Format:  {capture.WaveFormat}");
+WriteLine($"Format:  {pipeline.Format}");
+Write("Pitch semitones (-12 to +12, blank for 0): ");
+if (float.TryParse(ReadLine(), out var semis))
+{
+    pipeline.PitchSemitones = semis;
+}
 WriteLine("Press any key to stop...");
 
-capture.StartRecording();
-output.Play();
-
+pipeline.Start();
 ReadKey(intercept: true);
-
-capture.StopRecording();
-output.Stop();
+pipeline.Stop();
 
 static MMDevice PromptForDevice(string label, List<MMDevice> devices)
 {
