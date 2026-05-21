@@ -12,7 +12,7 @@ Non-developers who want a free alternative to commercial voice modulation softwa
 
 C# with .NET 8 (LTS), NAudio for audio I/O, WPF for the GUI, VB-Cable as the virtual microphone driver. Primary development in VS Code with the C# Dev Kit extension. Visual Studio available for WPF designer work and debugging.
 
-## Phase 1: Skeleton
+## Phase 1: Skeleton [Done]
 
 Establish the audio pipeline with no processing. The application reads samples from a selected input device and writes them unchanged to a selected output device. Success criterion: with VB-Cable installed, run the skeleton, configure a voice chat application to read from VB-Cable's output, and confirm unmodified voice is transmitted on a call. Console application is acceptable at this stage. No GUI required. Includes device enumeration, format negotiation between devices, a ring buffer between capture and render threads, and basic start/stop logic.
 

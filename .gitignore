@@ -1,0 +1,36 @@
+# Claude Code local config
+.claude/
+
+# Log files
+*.log
+
+# Build output
+bin/
+obj/
+out/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Test results / coverage
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+**/packages/*
+!**/packages/build/
+
+# Misc OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
