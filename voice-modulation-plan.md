@@ -16,7 +16,7 @@ C# with .NET 8 (LTS), NAudio for audio I/O, WPF for the GUI, VB-Cable as the vir
 
 Establish the audio pipeline with no processing. The application reads samples from a selected input device and writes them unchanged to a selected output device. Success criterion: with VB-Cable installed, run the skeleton, configure a voice chat application to read from VB-Cable's output, and confirm unmodified voice is transmitted on a call. Console application is acceptable at this stage. No GUI required. Includes device enumeration, format negotiation between devices, a ring buffer between capture and render threads, and basic start/stop logic.
 
-## Phase 2: Pilot
+## Phase 2: Pilot [Done]
 
 Add a single pitch shift effect to the pipeline. Convert the console application to a minimal WPF window with an input device dropdown, output device dropdown, start/stop button, and one slider for pitch amount. Success criterion: on a voice chat call, the receiving party hears a pitch-shifted voice with acceptable latency (target under 50ms end-to-end). Requires choosing a pitch shift algorithm (PSOLA for simplicity, or a phase vocoder for higher quality).
 

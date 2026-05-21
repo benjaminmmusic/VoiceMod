@@ -55,3 +55,65 @@ Not blocking Phase 1 sign-off. User explicitly said it works and is good enough 
 - Device disconnection handling — deferred to Phase 5 per plan, but if either device drops mid-session right now the app probably crashes ugly. Not worth fixing yet.
 - Sample rate mismatch handling — if any device ever defaults to 44.1 kHz instead of 48 kHz, `WasapiOut.Init` should still work (it resamples), but Phase 1 hasn't been tested against that case.
 - `VBCABLE_ControlPanel.exe` reliability — opened fine after reboot but the install-time error suggests the registration is fragile. Note for the Phase 5 "first-run experience" that detects VB-Cable: don't rely on the control panel binary as the detection check.
+
+---
+
+## Phase 2 — Pitch shift + WPF
+
+### Decisions
+
+- **Library: SoundTouch.Net 2.3.2.** Time-domain pitch shifter (hybrid time-stretch + resample). Battle-tested, real-time capable, ~20–40 ms algorithmic delay. Alternative would be a phase vocoder (frequency-domain) — higher quality but +40 ms latency and bigger code change. Revisit if SoundTouch artifacts become unacceptable.
+- **Effect runs on the capture thread.** `OnCaptureDataAvailable` → `PitchEffect.Process` → `BufferedWaveProvider`. Render thread reads from the buffer separately. Capture thread is event-driven, not real-time-critical, so a few ms of processing there is fine.
+- **Zero-semitone bypass.** When pitch is exactly 0, skip SoundTouch entirely — avoids its algorithmic latency for the most common idle state. Trade-off: at-runtime transitions between bypass and SoundTouch can briefly glitch.
+- **Jitter buffer = 50 ms** (`BufferedWaveProvider.BufferDuration`). Down from 200 ms in Phase 1. `DiscardOnBufferOverflow = true` — drop oldest if render stalls, prefer bounded latency over no-loss.
+
+### SoundTouch tuning history (the warble vs. clicks trade-off)
+
+SoundTouch exposes three knobs: `SequenceDurationMs` (size of the chunks the algorithm processes), `SeekWindowDurationMs` (how far it can search for a good cut point inside each chunk), `OverlapDurationMs` (how long the cross-fade between chunks is). All three are in milliseconds. Bigger = smoother sustained tones but audible clicks at block boundaries on transients and longer trailing buffer at the end of speech. Smaller = no clicks, low latency, but the periodic modulation cycle ("robot/warble") becomes audible when the cycle frequency enters the audible range (~20–80 Hz, i.e. block durations under ~50 ms).
+
+- **Phase 1 / pre-tuning**: defaults (~82 / 28 / 12). Clicks on transients, noticeable trailing cut-off at negative semitones.
+- **First tuning attempt**: 40 / 15 / 8. Removed clicks entirely but introduced robot/warble at higher positive semitones (overlap cycle around 25 Hz, audibly modulating the carrier).
+- **Current**: 60 / 20 / 10. Middle ground, signed off as acceptable for the pilot. At ±6 semitones it sounds clean; at +12 the warble returns (chipmunk territory). At −12 it still sounds OK. Asymmetric quality is expected — shifting pitch *up* requires the algorithm to fit more pitch-shifted material into the same output time, which means more block transitions per second and more chance of audible warble.
+
+### Pilot status
+
+Phase 2 audio quality signed off as good enough for pilot at 60/20/10 (2026-05-21). Trailing/middle cuts in Discord are confirmed to be Discord's noise gate, not our pipeline (Audacity test from CABLE Output came back continuous). No further tuning before Phase 3 unless something regresses.
+
+### Future options for improving extreme-pitch quality
+
+Three escalating paths if/when we want chipmunk-grade quality at +12 (or better behavior across the full range). Listed in order of complexity. All deferred.
+
+**Option A — Bigger uniform windows.**
+
+One-line change: push `SequenceDurationMs` / `SeekWindowDurationMs` / `OverlapDurationMs` to e.g. `100 / 35 / 15` or `140 / 45 / 20`. Larger blocks = smoother sustained tones, less warble, but +30–40 ms latency added to the floor and the trailing cut-off at negative pitch returns.
+
+- Cost: trivial (3 line edits in `PitchEffect`'s constructor).
+- Best for: testing whether the warble is genuinely fixable inside SoundTouch before going to harder options.
+- Try first if Option A's latency hit (~80–100 ms end-to-end) is tolerable for the use case.
+
+**Option B — Dynamic tuning by pitch direction and magnitude.**
+
+Apply different SoundTouch settings depending on the current `PitchSemitones` value, refreshed whenever the slider moves. Sketch:
+
+- `|pitch| ≤ 3`: 60 / 20 / 10 — low latency, current pilot setting
+- positive and `> 3`: 120 / 40 / 18 — chipmunk gets quality, latency goes up only when needed
+- negative and `> 3`: 40 / 15 / 8 — minimize trailing artifact on demonic / monster voices
+
+- Cost: ~10 lines added to `PitchEffect`. Move the three settings into a private `RetuneFor(float semitones)` method called from the `Semitones` setter. Need to call `_processor.SetSetting` whenever pitch changes; SoundTouch may need a `Flush()` between regimes to avoid mid-stream glitches.
+- Best for: keeping the user-visible UX as a single Pitch slider while getting near-optimal quality at every position. The user gets quality without thinking about it.
+- Risk: regime transitions (slider crossing the ±3 boundary while talking) may glitch.
+
+**Option C — Switch algorithm: phase vocoder via NWaves.**
+
+[NWaves](https://github.com/ar1st0crat/NWaves) is a comprehensive C# DSP library with multiple pitch-shift implementations. The phase vocoder family operates in the frequency domain (FFT → modify bins → IFFT) instead of stitching time-domain blocks together. Different artifact character — smearing and "phasiness" instead of warble — and most listeners prefer the result for voice. Some implementations support formant correction, which is closer to "human chipmunk" than "vocoder chipmunk."
+
+- Cost: substantial. New NuGet dependency. Replace SoundTouch usage inside `PitchEffect` (or split into a new `PhaseVocoderEffect` class so both implementations coexist). API is different — need to feed sample-frame chunks of a fixed size, manage FFT window/hop, handle the algorithmic delay.
+- Latency: floor goes up to ~40 ms regardless of pitch (FFT window size). End-to-end is comparable to Option A but the quality at extreme pitch is meaningfully better.
+- Best for: long-term right answer if extreme pitch quality matters. Also unlocks formant-preserved pitch shifting (sound like yourself but higher/lower, rather than a different voice). NWaves also has WSOLA and SOLA implementations if we want to stay in time domain but try a different algorithm.
+- Worth doing in Phase 4 or 5 if the pilot is well-received and we want to polish quality. Until then, Option A or B carries us.
+
+### Other open items / future work
+
+- **Trailing cut-off & mid-speech cuts in Discord** turned out to be Discord's noise gate, not our pipeline. Confirmed via Audacity test (recorded from CABLE Output): continuous audio with no cuts. Discord's voice-activity gate is the cause. No fix on our side.
+- **Popping in Audacity at non-zero pitch** turned out to be SoundTouch block-boundary clicks. Fixed by the 60/20/10 tuning (resolved 2026-05-21).
+- **Bypass-vs-SoundTouch transition glitch** — switching pitch slider from 0 to non-zero (or back) momentarily glitches because SoundTouch starts cold with no internal buffer history. Acceptable for now; revisit if users find it annoying. Workaround: never bypass — always feed SoundTouch, accept its baseline latency at pitch=0.
