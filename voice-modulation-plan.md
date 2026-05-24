@@ -20,7 +20,7 @@ Establish the audio pipeline with no processing. The application reads samples f
 
 Add a single pitch shift effect to the pipeline. Convert the console application to a minimal WPF window with an input device dropdown, output device dropdown, start/stop button, and one slider for pitch amount. Success criterion: on a voice chat call, the receiving party hears a pitch-shifted voice with acceptable latency (target under 50ms end-to-end). Requires choosing a pitch shift algorithm (PSOLA for simplicity, or a phase vocoder for higher quality).
 
-## Phase 3: Second Effect
+## Phase 3: Second Effect [Done]
 
 Add a second effect with simple math and immediate audible feedback, such as ring modulation (robot voice) or a delay line (echo). Add a corresponding slider to the UI. Focus on extending within the existing architecture rather than refactoring it.
 
