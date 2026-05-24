@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using NAudio.CoreAudioApi;
 using VoiceMod.Core;
 
@@ -13,6 +14,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         LoadDevices();
+        EffectCombo.SelectedIndex = 0;
     }
 
     private void LoadDevices()
@@ -40,6 +42,8 @@ public partial class MainWindow : Window
         {
             _pipeline = new Pipeline(input.Device, output.Device);
             _pipeline.PitchSemitones = (float)PitchSlider.Value;
+            _pipeline.RingModFrequency = (float)RingModSlider.Value;
+            _pipeline.Mode = (EffectMode)EffectCombo.SelectedIndex;
             _pipeline.Start();
 
             InputDeviceCombo.IsEnabled = false;
@@ -81,6 +85,41 @@ public partial class MainWindow : Window
             _pipeline.PitchSemitones = value;
         }
     }
+
+    private void RingModSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (RingModLabel is null) return;
+
+        var value = (int)e.NewValue;
+        RingModLabel.Text = $"{value} Hz";
+
+        if (_pipeline != null)
+        {
+            _pipeline.RingModFrequency = value;
+        }
+    }
+
+    private void EffectCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PitchSlider is null || RingModSlider is null) return;
+
+        if (_pipeline != null)
+        {
+            _pipeline.Mode = (EffectMode)EffectCombo.SelectedIndex;
+        }
+
+        if (EffectCombo.SelectedIndex == 0)
+        {
+            PitchSlider.IsEnabled = true;
+            RingModSlider.IsEnabled = false;
+        }
+        else
+        {
+            PitchSlider.IsEnabled = false;
+            RingModSlider.IsEnabled = true;
+        }
+    }
+
 
     protected override void OnClosed(EventArgs e)
     {

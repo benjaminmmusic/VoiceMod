@@ -3,6 +3,12 @@ using NAudio.Wave;
 
 namespace VoiceMod.Core;
 
+public enum EffectMode
+{
+    Pitch,
+    RingMod,
+}
+
 public sealed class Pipeline : IDisposable
 {
     private const int CaptureBufferMs = 20;
@@ -13,7 +19,10 @@ public sealed class Pipeline : IDisposable
     private readonly BufferedWaveProvider _jitterBuffer;
     private readonly WasapiOut _output;
     private readonly PitchEffect _pitch;
+    private readonly RingModEffect _ringMod;
 
+    public EffectMode Mode { get; set;} = EffectMode.Pitch;
+   
     public Pipeline(MMDevice input, MMDevice output)
     {
         _capture = new WasapiCapture(input, useEventSync: true, audioBufferMillisecondsLength: CaptureBufferMs);
@@ -27,6 +36,8 @@ public sealed class Pipeline : IDisposable
         }
 
         _pitch = new PitchEffect(format.SampleRate, format.Channels);
+
+        _ringMod = new RingModEffect(format.SampleRate, format.Channels);
 
         _jitterBuffer = new BufferedWaveProvider(format)
         {
@@ -46,6 +57,12 @@ public sealed class Pipeline : IDisposable
     {
         get => _pitch.Semitones;
         set => _pitch.Semitones = value;
+    }
+
+    public float RingModFrequency
+    {
+        get => _ringMod.FrequencyHz;
+        set => _ringMod.FrequencyHz = value;
     }
 
     public void Start()
@@ -69,6 +86,14 @@ public sealed class Pipeline : IDisposable
 
     private void OnCaptureDataAvailable(object? sender, WaveInEventArgs e)
     {
-        _pitch.Process(e.Buffer.AsSpan(0, e.BytesRecorded), _jitterBuffer);
+        switch (Mode)
+        {
+            case EffectMode.Pitch:
+                _pitch.Process(e.Buffer.AsSpan(0, e.BytesRecorded), _jitterBuffer);
+                break;
+            case EffectMode.RingMod:
+                _ringMod.Process(e.Buffer.AsSpan(0, e.BytesRecorded), _jitterBuffer);
+                break;
+        } 
     }
 }
