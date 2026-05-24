@@ -36,14 +36,6 @@ public sealed class PitchEffect
 
     public void Process(ReadOnlySpan<byte> inputBytes, BufferedWaveProvider output)
     {
-        if (_semitones == 0f)
-        {
-            // bypass: SoundTouch adds algorithmic latency even at zero shift
-            var passthrough = inputBytes.ToArray();
-            output.AddSamples(passthrough, 0, passthrough.Length);
-            return;
-        }
-
         var inputFloats = MemoryMarshal.Cast<byte, float>(inputBytes);
         var frameCount = inputFloats.Length / _channels;
 

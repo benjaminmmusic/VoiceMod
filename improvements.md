@@ -12,16 +12,6 @@ Categories:
 
 ## Phase 2 tightening (identified 2026-05-21)
 
-### 1. Bypass ↔ SoundTouch transition glitch — *Bug*
-
-**Problem.** When the pitch slider moves through 0, we toggle between bypass mode (skip SoundTouch entirely) and SoundTouch mode. On every transition, SoundTouch resumes with no internal buffer history, producing an audible glitch in the first few hundred milliseconds.
-
-**Fix.** Call `_processor.Clear()` whenever the bypass state changes (i.e. whenever `Semitones` crosses 0 or hits exactly 0). Lives in [src/VoiceMod.Core/PitchEffect.cs](src/VoiceMod.Core/PitchEffect.cs) in the `Semitones` setter.
-
-**Effort.** ~3 lines.
-
----
-
 ### 2. Final block of audio lost when stopping — *Bug*
 
 **Problem.** `Pipeline.Stop` calls `WasapiOut.Stop` then `WasapiCapture.StopRecording`, leaving up to one block of samples inside SoundTouch never flushed. Currently not user-visible because we dispose after stop. Becomes a real problem if we ever support restart-without-dispose (e.g. a pause/resume button).
