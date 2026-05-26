@@ -122,6 +122,236 @@ Categories:
 
 ---
 
+### 12. File organization as the project grows — *Arch prep (planned)*
+
+**Problem.** All `*Effect.cs` files sit flat in `src/VoiceMod.Core/` next to `Pipeline.cs`. Same story for App: settings + window + future dialogs will all live flat in `src/VoiceMod.App/`. Fine for 2–3 effects; gets crowded fast as Phase 4 (effect chain, presets) and beyond land.
+
+**Plan (when triggered).** Organize by responsibility, not by class type. Proposed layout:
+
+```
+src/
+├── VoiceMod.Core/
+│   ├── Audio/             pipeline, format helpers, future audio plumbing
+│   │   └── Pipeline.cs
+│   ├── CoreEffects/       atomic / built-in effects
+│   │   ├── PitchEffect.cs
+│   │   └── RingModEffect.cs
+│   ├── (future) Presets/  named combos like "Robot", "Chipmunk", "Demon"
+│   └── (future) Chains/   ordered multi-effect orchestration (Phase 4 work)
+└── VoiceMod.App/
+    ├── Settings/          AppSettings.cs, SettingsStore.cs
+    ├── Views/             MainWindow.xaml(.cs), future windows/dialogs
+    └── (root)             App.xaml(.cs) — entry point stays at root
+```
+
+**Why `CoreEffects/` and not just `Effects/`.** Phase 4 introduces *presets* (named combinations of effects with preset parameter values) and an *effect chain* (multiple effects running in series). Both are "effect-related" concepts but conceptually distinct from the atomic effect implementations themselves. Reserving `Effects/` would force a confusing nested structure later (`Effects/Effects/PitchEffect.cs`?). `CoreEffects/` for the atomic primitives leaves `Presets/` and `Chains/` (or similar) as clean siblings when they arrive.
+
+C# namespace can stay flat (e.g. `VoiceMod.Core` for everything) regardless of folders, or mirror the folder structure (`VoiceMod.Core.Effects`) — folder reshuffling alone doesn't force namespace changes.
+
+**Trigger.** Pull this in when:
+- `VoiceMod.Core/` has 5+ effect files, OR
+- We start adding effect-related supporting files (effect-base interfaces, common DSP helpers), OR
+- Phase 4 begins (effect chain + presets land — natural moment to reorganize anyway).
+
+**Cost.** ~30 min: move files into folders, update namespaces if we want them mirrored, fix any using-statements. Project references and csproj need no changes — folders inside a project are implicit.
+
+**Why now-ish but not now.** Premature reorganization is its own waste. The current 2 effects don't justify subfolders. But pre-agreeing on the structure means when the trigger fires, we just do it without re-debating layout.
+
+---
+
+### 13. Persistent settings — *Polish (planned, design-approved 2026-05-25)*
+
+**Problem.** Every time the app starts, devices and slider values reset to defaults. Annoying for daily use — picking the right mic + VB-Cable + pitch level every session is friction.
+
+**Goal.** Save user's last-used settings on close. Restore them on next launch.
+
+#### Concepts to know first (skim, don't memorize)
+
+**What "persistent" means.** While the app runs, the user's choices live in memory — the slider knows its current value, the combo knows the selected device. When the app closes, all of that is gone. "Persistent" = written to disk so it survives a close. We write to a file, read it back next launch.
+
+**What a schema is.** A schema is the *shape* of your data — what fields exist, what types they hold, what's required vs optional. In our case the schema is the `AppSettings` record below: `InputDeviceId` is a nullable string, `PitchSemitones` is an int, and so on. JSON is "schemaless" in the sense that the file itself doesn't enforce a shape — but our C# record acts as the schema. When we deserialize, JSON values are mapped into the record's fields. Mismatches are tolerated (extra JSON fields are ignored, missing JSON fields get default values).
+
+**Why JSON, not some custom format.** JSON is built into .NET — `System.Text.Json` handles read/write in one line each. Universal format, every tool understands it, easy to hand-edit if you ever need to debug a stuck setting.
+
+**Why we save to `%APPDATA%`, not next to the .exe.** The Windows convention is:
+- Program files (`.exe`, `.dll`) live in `C:\Program Files\...` — read-only for normal users, shared across all users on the machine.
+- User-specific data (settings, caches, save files) lives in `%APPDATA%` (`C:\Users\<name>\AppData\Roaming\...`) — writable, per-user, doesn't get wiped when the app is reinstalled.
+
+Writing to `Program Files` requires admin and would clobber other users on the same machine. `AppData` is the right place.
+
+**Why we save device *IDs*, not names or indexes.**
+- Names ("Microphone (Logitech G733)") can change if the user renames or the driver updates.
+- Indexes (the position in the dropdown) change every time devices are plugged in/out or re-enumerated by Windows.
+- IDs are opaque strings assigned by Windows that stay the same across reboots and reinstalls.
+
+Picking the wrong identifier means your saved settings silently restore the wrong device after a reboot. IDs avoid this.
+
+**Why fields are nullable (`string?`, `double?`).** First-time runs have no settings file yet. We return an empty `AppSettings` with default values. `null` for "we don't know yet" is meaningful — for example, if `WindowLeft` is null, we let the OS decide where to put the window; if it has a value, we restore that position. Forcing a non-nullable default (like 0) would push every first-run window into the top-left corner. Not what you want.
+
+**Why we tolerate missing fields when loading.** Forward compatibility. When you add a `DelayMs` field for a future "Delay" effect, old settings files won't have it. `JsonSerializer` fills missing fields with the C# default (`0` for `int`, `null` for nullable types). No migration code, no errors. Just works.
+
+#### What to persist
+
+A single JSON file with these fields:
+
+- `InputDeviceId` — the selected input device's `MMDevice.ID` (string, stable across reboots)
+- `OutputDeviceId` — same for output
+- `EffectMode` — name of the selected effect ("Pitch" or "RingMod")
+- `PitchSemitones` — last pitch slider value (int)
+- `RingModFrequencyHz` — last ring-mod slider value (int)
+- `WindowLeft`, `WindowTop`, `WindowWidth`, `WindowHeight` — window position and size (doubles, nullable)
+
+Save **all** effect values regardless of which is active. If the user dials in pitch=+5, switches to robot for a session, then comes back to pitch — they expect +5 still set.
+
+#### Where the file lives
+
+`%APPDATA%\VoiceMod\settings.json`. Get the path:
+
+```csharp
+var dir = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+    "VoiceMod");
+Directory.CreateDirectory(dir); // safe if it already exists
+var path = Path.Combine(dir, "settings.json");
+```
+
+#### When to save
+
+**Option A (start here): save on app close.** Hook into `MainWindow.OnClosed`. Simple, one call site.
+
+**Option B (later, if needed): save on every change with a debounce.** Hook into slider `ValueChanged`, combo `SelectionChanged`, etc., and call Save through a short (~500 ms) timer that resets each event so rapid changes coalesce into one write. Same `Save()` method, just called from more places.
+
+Starting with A makes B a small additive change later — no refactor.
+
+#### When to load
+
+App startup, in `MainWindow` constructor, *after* `LoadDevices()` populates the dropdowns. Reason: we need the device combo items to exist before we can preselect them by ID.
+
+#### Files to create (both in `src/VoiceMod.App/`)
+
+**`AppSettings.cs`** — POCO record holding the persisted fields:
+
+```csharp
+namespace VoiceMod.App;
+
+public sealed record AppSettings
+{
+    public string? InputDeviceId { get; init; }
+    public string? OutputDeviceId { get; init; }
+    public string EffectMode { get; init; } = "Pitch";
+    public int PitchSemitones { get; init; }
+    public int RingModFrequencyHz { get; init; }
+    public double? WindowLeft { get; init; }
+    public double? WindowTop { get; init; }
+    public double? WindowWidth { get; init; }
+    public double? WindowHeight { get; init; }
+}
+```
+
+`record` = like a class but immutable. `init` = settable only at construction. `?` after type = nullable (allowed to be null). All defaults are sensible for first run.
+
+**`SettingsStore.cs`** — Load and Save static methods. Sketch:
+
+```csharp
+using System.IO;
+using System.Text.Json;
+
+namespace VoiceMod.App;
+
+public static class SettingsStore
+{
+    private static readonly string Path = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "VoiceMod",
+        "settings.json");
+
+    public static AppSettings Load()
+    {
+        try
+        {
+            if (!File.Exists(Path)) return new AppSettings();
+            var json = File.ReadAllText(Path);
+            return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+        }
+        catch (Exception ex)
+        {
+            // log to console; carry on with defaults rather than crashing
+            System.Diagnostics.Debug.WriteLine($"SettingsStore.Load failed: {ex}");
+            return new AppSettings();
+        }
+    }
+
+    public static void Save(AppSettings settings)
+    {
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
+            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path, json);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SettingsStore.Save failed: {ex}");
+            // silent failure — settings just don't persist this session
+        }
+    }
+}
+```
+
+#### Wiring into MainWindow.xaml.cs
+
+In the constructor, after `LoadDevices()`:
+
+```csharp
+var settings = SettingsStore.Load();
+ApplySettings(settings);
+```
+
+`ApplySettings` reads the record and restores UI:
+- Find the device item in `InputDeviceCombo.Items` whose `Device.ID` matches `settings.InputDeviceId` and select it (or leave unselected if not found)
+- Same for output
+- Set `EffectCombo.SelectedIndex` based on the effect name
+- Set `PitchSlider.Value` and `RingModSlider.Value`
+- Apply window position/size to the `Window` (`this.Left = settings.WindowLeft.Value;` etc., guarded by null checks)
+
+In `OnClosed`, *before* the dispose calls:
+
+```csharp
+SettingsStore.Save(new AppSettings
+{
+    InputDeviceId = (InputDeviceCombo.SelectedItem as DeviceItem)?.Device.ID,
+    OutputDeviceId = (OutputDeviceCombo.SelectedItem as DeviceItem)?.Device.ID,
+    EffectMode = ((EffectMode)EffectCombo.SelectedIndex).ToString(),
+    PitchSemitones = (int)PitchSlider.Value,
+    RingModFrequencyHz = (int)RingModSlider.Value,
+    WindowLeft = this.Left,
+    WindowTop = this.Top,
+    WindowWidth = this.Width,
+    WindowHeight = this.Height,
+});
+```
+
+#### Bug surface (handle these)
+
+- **First run** — settings.json doesn't exist. `Load()` returns a default `AppSettings`. Everything renders with defaults. ✓ handled in sketch above.
+- **Corrupted JSON** — `JsonSerializer.Deserialize` throws. Caught, defaults returned. ✓
+- **Saved device unplugged** — `InputDeviceId` doesn't match any current device. `ApplySettings` should just leave that dropdown unselected; user picks manually. No error popup needed.
+- **Disk full / no write perms** — `Save()` throws on file write. Caught and swallowed (the only "loss" is settings not persisting this session). ✓
+
+#### Future-proofing for new effects
+
+When a new effect lands (say "Delay"):
+1. Add a `DelayMs` field to `AppSettings.cs`. JSON deserialization handles missing fields gracefully — old settings files still load.
+2. Add one line each in `ApplySettings` and `OnClosed` to read/write the new field.
+
+Two files touched, ~3 lines added. Nothing else.
+
+#### Effort
+
+~80 lines total across the two new files + ~15 lines hooked into MainWindow. About 90 minutes including testing.
+
+---
+
 ## How to use this file
 
 1. When the user wants to pick up a tightening session, scan this list and choose items.
