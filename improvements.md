@@ -106,6 +106,22 @@ Categories:
 
 ---
 
+### 11. Pitch ~+2 transit pop — *Bug (deferred)*
+
+**Problem.** Sliding pitch through or away from ~+2 semitones produces an audible pop. Asymmetric — -2 is clean. Confirmed not caused by ramp size, parameter-write frequency, or any tested SoundTouch tuning. Static pitch values everywhere are clean; only slider motion triggers it. Suspected SoundTouch internal heuristic threshold around pitch ratio ~1.12 (= 2^(2/12)) but unverified. Investigated extensively 2026-05-25; see [notes.md](notes.md) Phase 2 section for the full investigation.
+
+**Two fix paths:**
+
+**11a. De-clicker post-process.** Detect sudden waveform discontinuities in the output stream and smooth them. Roughly 30–100 lines depending on sophistication. Risk: tuned aggressively will muffle plosive consonants (`p`, `t`, `k`). A naive amplitude-derivative threshold is ~30 lines and will catch some legitimate transients; a look-ahead envelope analysis (~100 lines) discriminates pops from plosives by what comes after the spike. Bolts a fix on top of SoundTouch.
+
+**11b. Algorithm swap to NWaves phase vocoder.** Phase vocoder doesn't have SoundTouch's block-stitching artifact model — pops of this kind would not exist. Significantly larger change. See notes.md Phase 2 future-options for the full discussion of this swap.
+
+**Recommendation.** 11b is the right long-term move. 11a is a band-aid that would become dead code once 11b ships. Prefer waiting for 11b unless the +2 pop becomes intolerable in real use.
+
+**Effort.** 11a: 30–100 lines. 11b: substantial — new NuGet dep, replace SoundTouch internals, handle the FFT window/hop API.
+
+---
+
 ## How to use this file
 
 1. When the user wants to pick up a tightening session, scan this list and choose items.
