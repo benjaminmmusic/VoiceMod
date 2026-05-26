@@ -12,6 +12,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
@@ -28,6 +30,7 @@
         <ComboBox Grid.Row="2" Grid.Column="1" x:Name="EffectCombo" Margin="8,0,0,16" SelectionChanged="EffectCombo_SelectionChanged">
             <ComboBoxItem Content="Pitch"/>
             <ComboBoxItem Content="Robot"/>
+            <ComboBoxItem Content="Echo"/>
         </ComboBox>
 
         <Label Grid.Row="3" Grid.Column="0" Content="Pitch:" VerticalAlignment="Center"/>
@@ -46,13 +49,25 @@
             <Slider x:Name="RingModSlider" Minimum="0" Maximum="2000" Value="0" TickFrequency="100" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="RingModSlider_ValueChanged"/>
         </DockPanel>
 
-        <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Margin="8,16,0,0">
+        <Label Grid.Row="5" Grid.Column="0" Content="EchoDelay:" VerticalAlignment="Center"/>
+        <DockPanel Grid.Row="5" Grid.Column="1" Margin="8,0,0,0">
+            <TextBlock x:Name="EchoDelayLabel" Text="+0 ms" Width="110" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="8,0,0,0"/>
+            <Slider x:Name="EchoDelaySlider" Minimum="0" Maximum="1000" Value="0" TickFrequency="100" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="EchoDelaySlider_ValueChanged"/>
+        </DockPanel>
+
+        <Label Grid.Row="6" Grid.Column="0" Content="EchoVolume:" VerticalAlignment="Center"/>
+        <DockPanel Grid.Row="6" Grid.Column="1" Margin="8,0,0,0">
+            <TextBlock x:Name="EchoVolumeLabel" Text="+0.0" Width="110" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="8,0,0,0"/>
+            <Slider x:Name="EchoVolumeSlider" Minimum="0" Maximum="1" Value="0" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="EchoVolumeSlider_ValueChanged"/>
+        </DockPanel>
+
+        <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Margin="8,16,0,0">
             <Button x:Name="StartButton" Content="Start" Width="80" Click="StartButton_Click"/>
             <Button x:Name="StopButton" Content="Stop" Width="80" Margin="8,0,0,0"
                     Click="StopButton_Click" IsEnabled="False"/>
         </StackPanel>
 
-        <TextBlock Grid.Row="6" Grid.ColumnSpan="2" x:Name="StatusLabel"
+        <TextBlock Grid.Row="8" Grid.ColumnSpan="2" x:Name="StatusLabel"
                    Text="Status: idle" Margin="0,16,0,0" FontStyle="Italic"/>
     </Grid>
 </Window>

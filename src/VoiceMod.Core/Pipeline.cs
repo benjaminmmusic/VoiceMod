@@ -7,6 +7,7 @@ public enum EffectMode
 {
     Pitch,
     RingMod,
+    Echo,
 }
 
 public sealed class Pipeline : IDisposable
@@ -20,6 +21,7 @@ public sealed class Pipeline : IDisposable
     private readonly WasapiOut _output;
     private readonly PitchEffect _pitch;
     private readonly RingModEffect _ringMod;
+    private readonly EchoEffect _echo;
 
     public EffectMode Mode { get; set;} = EffectMode.Pitch;
    
@@ -38,6 +40,8 @@ public sealed class Pipeline : IDisposable
         _pitch = new PitchEffect(format.SampleRate, format.Channels);
 
         _ringMod = new RingModEffect(format.SampleRate, format.Channels);
+
+        _echo = new EchoEffect(format.SampleRate, format.Channels);
 
         _jitterBuffer = new BufferedWaveProvider(format)
         {
@@ -63,6 +67,18 @@ public sealed class Pipeline : IDisposable
     {
         get => _ringMod.FrequencyHz;
         set => _ringMod.FrequencyHz = value;
+    }
+
+    public float EchoDelayMs
+    {
+        get => _echo.DelayMs;
+        set => _echo.DelayMs = value;
+    }
+
+    public float EchoVolume
+    {
+        get => _echo.EchoVolume;
+        set => _echo.EchoVolume = value;
     }
 
     public void Start()
@@ -93,6 +109,9 @@ public sealed class Pipeline : IDisposable
                 break;
             case EffectMode.RingMod:
                 _ringMod.Process(e.Buffer.AsSpan(0, e.BytesRecorded), _jitterBuffer);
+                break;
+            case EffectMode.Echo:
+                _echo.Process(e.Buffer.AsSpan(0, e.BytesRecorded), _jitterBuffer);
                 break;
         } 
     }

@@ -43,6 +43,8 @@ public partial class MainWindow : Window
             _pipeline = new Pipeline(input.Device, output.Device);
             _pipeline.PitchSemitones = (float)PitchSlider.Value;
             _pipeline.RingModFrequency = (float)RingModSlider.Value;
+            _pipeline.EchoDelayMs = (float)EchoDelaySlider.Value;
+            _pipeline.EchoVolume = (float)EchoVolumeSlider.Value;
             _pipeline.Mode = (EffectMode)EffectCombo.SelectedIndex;
             _pipeline.Start();
 
@@ -99,9 +101,36 @@ public partial class MainWindow : Window
         }
     }
 
+    private void EchoDelaySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (EchoDelayLabel is null) return;
+
+        var value = (int)e.NewValue;
+        EchoDelayLabel.Text = $"{value} ms";
+
+        if (_pipeline != null)
+        {
+            _pipeline.EchoDelayMs = value;
+        }
+    }
+
+    private void EchoVolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (EchoVolumeLabel is null) return;
+
+        var value = (float)e.NewValue;
+        EchoVolumeLabel.Text = $"{value:F2}";
+
+        if (_pipeline != null)
+        {
+            _pipeline.EchoVolume = value;
+        }
+    }
+
+
     private void EffectCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (PitchSlider is null || RingModSlider is null) return;
+        if (PitchSlider is null || RingModSlider is null || EchoDelaySlider is null || EchoVolumeSlider is null) return;
 
         if (_pipeline != null)
         {
@@ -112,11 +141,22 @@ public partial class MainWindow : Window
         {
             PitchSlider.IsEnabled = true;
             RingModSlider.IsEnabled = false;
+            EchoDelaySlider.IsEnabled = false;
+            EchoVolumeSlider.IsEnabled = false;
+        }
+        else if (EffectCombo.SelectedIndex == 1)
+        {
+            PitchSlider.IsEnabled = false;
+            RingModSlider.IsEnabled = true;
+            EchoDelaySlider.IsEnabled = false;
+            EchoVolumeSlider.IsEnabled = false;
         }
         else
         {
             PitchSlider.IsEnabled = false;
-            RingModSlider.IsEnabled = true;
+            RingModSlider.IsEnabled = false;
+            EchoDelaySlider.IsEnabled = true;
+            EchoVolumeSlider.IsEnabled = true;
         }
     }
 
