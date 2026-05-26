@@ -50,6 +50,7 @@ public partial class MainWindow : Window
             _pipeline.RingModFrequency = (float)RingModSlider.Value;
             _pipeline.EchoDelayMs = (float)EchoDelaySlider.Value;
             _pipeline.EchoVolume = (float)EchoVolumeSlider.Value;
+            _pipeline.PitchRampRate = (float)RampSlider.Value;
             _pipeline.Mode = (EffectMode)EffectCombo.SelectedIndex;
             _pipeline.Start();
 
@@ -146,14 +147,9 @@ public partial class MainWindow : Window
         }
     }
 
-
     /// <summary>
-    /// Updates the pipeline effect mode (if running) and enables or disables the UI sliders to match the selected effect.
+    /// Updates the pipeline's effect mode (if running) and collapses the rows belonging to non-selected effects so only the active effect's sliders are visible.
     /// </summary>
-    /// <remarks>
-    /// If any of the sliders are null the method returns immediately. Selection index 0 enables the pitch slider only; index 1 enables the ring-mod slider only; any other index enables the echo delay and echo volume sliders.
-    /// When a pipeline exists its Mode is set from the EffectCombo.SelectedIndex.
-    /// </remarks>
     private void EffectCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (PitchSlider is null || RingModSlider is null || EchoDelaySlider is null || EchoVolumeSlider is null) return;
@@ -163,29 +159,38 @@ public partial class MainWindow : Window
             _pipeline.Mode = (EffectMode)EffectCombo.SelectedIndex;
         }
 
-        if (EffectCombo.SelectedIndex == 0)
-        {
-            PitchSlider.IsEnabled = true;
-            RingModSlider.IsEnabled = false;
-            EchoDelaySlider.IsEnabled = false;
-            EchoVolumeSlider.IsEnabled = false;
-        }
-        else if (EffectCombo.SelectedIndex == 1)
-        {
-            PitchSlider.IsEnabled = false;
-            RingModSlider.IsEnabled = true;
-            EchoDelaySlider.IsEnabled = false;
-            EchoVolumeSlider.IsEnabled = false;
-        }
-        else
-        {
-            PitchSlider.IsEnabled = false;
-            RingModSlider.IsEnabled = false;
-            EchoDelaySlider.IsEnabled = true;
-            EchoVolumeSlider.IsEnabled = true;
-        }
+        var isPitch = EffectCombo.SelectedIndex == 0;
+        var isRobot = EffectCombo.SelectedIndex == 1;
+        var isEcho  = EffectCombo.SelectedIndex == 2;
+
+        var pitchVis = isPitch ? Visibility.Visible : Visibility.Collapsed;
+        var robotVis = isRobot ? Visibility.Visible : Visibility.Collapsed;
+        var echoVis  = isEcho  ? Visibility.Visible : Visibility.Collapsed;
+
+        PitchLabelLeft.Visibility = pitchVis;
+        PitchRow.Visibility = pitchVis;
+        RampLabelLeft.Visibility = pitchVis;
+        RampRow.Visibility = pitchVis;
+        RingModLabelLeft.Visibility = robotVis;
+        RingModRow.Visibility = robotVis;
+        EchoDelayLabelLeft.Visibility = echoVis;
+        EchoDelayRow.Visibility = echoVis;
+        EchoVolumeLabelLeft.Visibility = echoVis;
+        EchoVolumeRow.Visibility = echoVis;
     }
 
+    private void RampSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (RampLabel is null) return;
+
+        var value = (float)e.NewValue;
+        RampLabel.Text = $"{value:F2} /block";
+
+        if (_pipeline != null)
+        {
+            _pipeline.PitchRampRate = value;
+        }
+    }
 
     protected override void OnClosed(EventArgs e)
     {

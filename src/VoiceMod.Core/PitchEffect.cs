@@ -7,12 +7,12 @@ namespace VoiceMod.Core;
 
 public sealed class PitchEffect
 {
-    private const float RampSemitonesPerBlock = 0.15f;
-
     private readonly SoundTouchProcessor _processor;
     private readonly int _channels;
     private float _semitones;
     private float _appliedSemitones;
+
+    public float RampSemitonesPerBlock { get; set; } = 0.15f;
 
     public PitchEffect(int sampleRate, int channels)
     {

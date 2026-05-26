@@ -69,6 +69,12 @@ public sealed class Pipeline : IDisposable
         set => _pitch.Semitones = value;
     }
 
+    public float PitchRampRate
+    {
+        get => _pitch.RampSemitonesPerBlock;
+        set => _pitch.RampSemitonesPerBlock = value;
+    }
+
     public float RingModFrequency
     {
         get => _ringMod.FrequencyHz;
