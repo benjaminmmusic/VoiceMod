@@ -199,6 +199,7 @@ A single JSON file with these fields:
 - `EffectMode` — name of the selected effect ("Pitch" or "RingMod")
 - `PitchSemitones` — last pitch slider value (int)
 - `RingModFrequencyHz` — last ring-mod slider value (int)
+- `PitchRampRate` — last ramp slider value (float, semitones per capture block)
 - `WindowLeft`, `WindowTop`, `WindowWidth`, `WindowHeight` — window position and size (doubles, nullable)
 
 Save **all** effect values regardless of which is active. If the user dials in pitch=+5, switches to robot for a session, then comes back to pitch — they expect +5 still set.
@@ -241,6 +242,7 @@ public sealed record AppSettings
     public string EffectMode { get; init; } = "Pitch";
     public int PitchSemitones { get; init; }
     public int RingModFrequencyHz { get; init; }
+    public float PitchRampRate { get; init; } = 0.15f;
     public double? WindowLeft { get; init; }
     public double? WindowTop { get; init; }
     public double? WindowWidth { get; init; }
@@ -324,6 +326,7 @@ SettingsStore.Save(new AppSettings
     EffectMode = ((EffectMode)EffectCombo.SelectedIndex).ToString(),
     PitchSemitones = (int)PitchSlider.Value,
     RingModFrequencyHz = (int)RingModSlider.Value,
+    PitchRampRate = (float)RampSlider.Value,
     WindowLeft = this.Left,
     WindowTop = this.Top,
     WindowWidth = this.Width,
