@@ -7,9 +7,12 @@ namespace VoiceMod.Core;
 
 public sealed class PitchEffect
 {
+    private const float RampSemitonesPerBlock = 0.15f;
+
     private readonly SoundTouchProcessor _processor;
     private readonly int _channels;
     private float _semitones;
+    private float _appliedSemitones;
 
     public PitchEffect(int sampleRate, int channels)
     {
@@ -27,15 +30,13 @@ public sealed class PitchEffect
     public float Semitones
     {
         get => _semitones;
-        set
-        {
-            _semitones = value;
-            _processor.PitchSemiTones = value;
-        }
+        set => _semitones = value;
     }
 
     public void Process(ReadOnlySpan<byte> inputBytes, BufferedWaveProvider output)
     {
+        AdvancePitchRamp();
+
         var inputFloats = MemoryMarshal.Cast<byte, float>(inputBytes);
         var frameCount = inputFloats.Length / _channels;
 
@@ -60,5 +61,22 @@ public sealed class PitchEffect
             ArrayPool<float>.Shared.Return(inBuf);
             ArrayPool<float>.Shared.Return(outBuf);
         }
+    }
+
+    private void AdvancePitchRamp()
+    {
+        if (_appliedSemitones == _semitones) return;
+
+        var delta = _semitones - _appliedSemitones;
+        if (Math.Abs(delta) <= RampSemitonesPerBlock)
+        {
+            _appliedSemitones = _semitones;
+        }
+        else
+        {
+            _appliedSemitones += Math.Sign(delta) * RampSemitonesPerBlock;
+        }
+
+        _processor.PitchSemiTones = _appliedSemitones;
     }
 }
