@@ -53,16 +53,16 @@
             <Slider x:Name="RampSlider" Minimum="0.05" Maximum="1.0" Value="0.15" TickFrequency="0.05" IsMoveToPointEnabled="True" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="RampSlider_ValueChanged"/>
         </DockPanel>
 
-        <Label x:Name="EchoDelayLabelLeft" Grid.Row="6" Grid.Column="0" Content="EchoDelay:" VerticalAlignment="Center"/>
+        <Label x:Name="EchoDelayLabelLeft" Grid.Row="6" Grid.Column="0" Content="Delay:" VerticalAlignment="Center"/>
         <DockPanel x:Name="EchoDelayRow" Grid.Row="6" Grid.Column="1" Margin="8,0,0,0">
             <TextBlock x:Name="EchoDelayLabel" Text="+0 ms" Width="110" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="8,0,0,0"/>
-            <Slider x:Name="EchoDelaySlider" Minimum="0" Maximum="1000" Value="0" TickFrequency="100" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="EchoDelaySlider_ValueChanged"/>
+            <Slider x:Name="EchoDelaySlider" Minimum="0" Maximum="1000" Value="0" TickFrequency="100" IsMoveToPointEnabled="True" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="EchoDelaySlider_ValueChanged"/>
         </DockPanel>
 
-        <Label x:Name="EchoVolumeLabelLeft" Grid.Row="7" Grid.Column="0" Content="EchoVolume:" VerticalAlignment="Center"/>
+        <Label x:Name="EchoVolumeLabelLeft" Grid.Row="7" Grid.Column="0" Content="Volume:" VerticalAlignment="Center"/>
         <DockPanel x:Name="EchoVolumeRow" Grid.Row="7" Grid.Column="1" Margin="8,0,0,0">
             <TextBlock x:Name="EchoVolumeLabel" Text="+0.0" Width="110" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="8,0,0,0"/>
-            <Slider x:Name="EchoVolumeSlider" Minimum="0" Maximum="1" Value="0" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="EchoVolumeSlider_ValueChanged"/>
+            <Slider x:Name="EchoVolumeSlider" Minimum="0" Maximum="1" Value="0" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05" IsMoveToPointEnabled="True" IsSnapToTickEnabled="True" TickPlacement="BottomRight" ValueChanged="EchoVolumeSlider_ValueChanged"/>
         </DockPanel>
 
         <StackPanel Grid.Row="9" Grid.Column="1" Orientation="Horizontal" Margin="8,16,0,0">
