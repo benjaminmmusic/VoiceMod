@@ -128,7 +128,7 @@ Categories:
 
 **Plan (when triggered).** Organize by responsibility, not by class type. Proposed layout:
 
-```
+```text
 src/
 ├── VoiceMod.Core/
 │   ├── Audio/             pipeline, format helpers, future audio plumbing
