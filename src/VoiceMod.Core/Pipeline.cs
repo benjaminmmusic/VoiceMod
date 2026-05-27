@@ -7,6 +7,7 @@ public enum EffectMode
 {
     Pitch,
     RingMod,
+    Echo,
 }
 
 public sealed class Pipeline : IDisposable
@@ -20,9 +21,16 @@ public sealed class Pipeline : IDisposable
     private readonly WasapiOut _output;
     private readonly PitchEffect _pitch;
     private readonly RingModEffect _ringMod;
+    private readonly EchoEffect _echo;
 
     public EffectMode Mode { get; set;} = EffectMode.Pitch;
    
+    /// <summary>
+    /// Initializes a new Pipeline that captures audio from the specified input device, applies selectable processing effects, and routes the processed audio to the specified output device.
+    /// </summary>
+    /// <param name="input">The capture (input) audio device used for recording.</param>
+    /// <param name="output">The render (output) audio device used for playback.</param>
+    /// <exception cref="NotSupportedException">Thrown when the capture device's wave format is not 32-bit IEEE float; the capture is disposed before this exception is thrown.</exception>
     public Pipeline(MMDevice input, MMDevice output)
     {
         _capture = new WasapiCapture(input, useEventSync: true, audioBufferMillisecondsLength: CaptureBufferMs);
@@ -38,6 +46,8 @@ public sealed class Pipeline : IDisposable
         _pitch = new PitchEffect(format.SampleRate, format.Channels);
 
         _ringMod = new RingModEffect(format.SampleRate, format.Channels);
+
+        _echo = new EchoEffect(format.SampleRate, format.Channels);
 
         _jitterBuffer = new BufferedWaveProvider(format)
         {
@@ -65,6 +75,21 @@ public sealed class Pipeline : IDisposable
         set => _ringMod.FrequencyHz = value;
     }
 
+    public float EchoDelayMs
+    {
+        get => _echo.DelayMs;
+        set => _echo.DelayMs = value;
+    }
+
+    public float EchoVolume
+    {
+        get => _echo.EchoVolume;
+        set => _echo.EchoVolume = value;
+    }
+
+    /// <summary>
+    /// Begins audio capture from the input device and starts audio output playback.
+    /// </summary>
     public void Start()
     {
         _capture.StartRecording();
@@ -84,6 +109,11 @@ public sealed class Pipeline : IDisposable
         _output.Dispose();
     }
 
+    /// <summary>
+    /// Handles incoming captured audio by applying the currently selected effect and writing the processed samples into the pipeline's jitter buffer.
+    /// </summary>
+    /// <param name="sender">The event source; may be null.</param>
+    /// <param name="e">Contains the captured audio buffer and the number of bytes recorded; the handler processes the recorded samples and forwards them to the jitter buffer.</param>
     private void OnCaptureDataAvailable(object? sender, WaveInEventArgs e)
     {
         switch (Mode)
@@ -93,6 +123,9 @@ public sealed class Pipeline : IDisposable
                 break;
             case EffectMode.RingMod:
                 _ringMod.Process(e.Buffer.AsSpan(0, e.BytesRecorded), _jitterBuffer);
+                break;
+            case EffectMode.Echo:
+                _echo.Process(e.Buffer.AsSpan(0, e.BytesRecorded), _jitterBuffer);
                 break;
         } 
     }

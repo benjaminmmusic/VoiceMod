@@ -29,6 +29,11 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Initializes and starts the audio processing pipeline using the currently selected input and output devices and the current UI effect settings, then updates the window controls and status to reflect running state.
+    /// </summary>
+    /// <param name="sender">The source of the click event.</param>
+    /// <param name="e">Event data for the click event.</param>
     private void StartButton_Click(object sender, RoutedEventArgs e)
     {
         if (InputDeviceCombo.SelectedItem is not DeviceItem input ||
@@ -43,6 +48,8 @@ public partial class MainWindow : Window
             _pipeline = new Pipeline(input.Device, output.Device);
             _pipeline.PitchSemitones = (float)PitchSlider.Value;
             _pipeline.RingModFrequency = (float)RingModSlider.Value;
+            _pipeline.EchoDelayMs = (float)EchoDelaySlider.Value;
+            _pipeline.EchoVolume = (float)EchoVolumeSlider.Value;
             _pipeline.Mode = (EffectMode)EffectCombo.SelectedIndex;
             _pipeline.Start();
 
@@ -86,6 +93,12 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Updates the ring-modulation frequency label and, if a pipeline is active, applies the new frequency to the pipeline when the slider value changes.
+    /// </summary>
+    /// <remarks>
+    /// The label text is set to "{value} Hz" where value is the slider's new integer value. If a pipeline exists, its RingModFrequency is updated to the same value.
+    /// </remarks>
     private void RingModSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (RingModLabel is null) return;
@@ -99,9 +112,51 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Updates the displayed echo delay and, if a pipeline is active, sets its echo delay when the slider value changes.
+    /// </summary>
+    private void EchoDelaySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (EchoDelayLabel is null) return;
+
+        var value = (int)e.NewValue;
+        EchoDelayLabel.Text = $"{value} ms";
+
+        if (_pipeline != null)
+        {
+            _pipeline.EchoDelayMs = value;
+        }
+    }
+
+    /// <summary>
+    /// Updates the echo volume label to the slider's value and, if a pipeline exists, applies that value to the pipeline's EchoVolume.
+    /// </summary>
+    /// <param name="sender">The slider control that raised the event.</param>
+    /// <param name="e">Event data containing the new slider value in <c>e.NewValue</c>.</param>
+    private void EchoVolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (EchoVolumeLabel is null) return;
+
+        var value = (float)e.NewValue;
+        EchoVolumeLabel.Text = $"{value:F2}";
+
+        if (_pipeline != null)
+        {
+            _pipeline.EchoVolume = value;
+        }
+    }
+
+
+    /// <summary>
+    /// Updates the pipeline effect mode (if running) and enables or disables the UI sliders to match the selected effect.
+    /// </summary>
+    /// <remarks>
+    /// If any of the sliders are null the method returns immediately. Selection index 0 enables the pitch slider only; index 1 enables the ring-mod slider only; any other index enables the echo delay and echo volume sliders.
+    /// When a pipeline exists its Mode is set from the EffectCombo.SelectedIndex.
+    /// </remarks>
     private void EffectCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (PitchSlider is null || RingModSlider is null) return;
+        if (PitchSlider is null || RingModSlider is null || EchoDelaySlider is null || EchoVolumeSlider is null) return;
 
         if (_pipeline != null)
         {
@@ -112,11 +167,22 @@ public partial class MainWindow : Window
         {
             PitchSlider.IsEnabled = true;
             RingModSlider.IsEnabled = false;
+            EchoDelaySlider.IsEnabled = false;
+            EchoVolumeSlider.IsEnabled = false;
+        }
+        else if (EffectCombo.SelectedIndex == 1)
+        {
+            PitchSlider.IsEnabled = false;
+            RingModSlider.IsEnabled = true;
+            EchoDelaySlider.IsEnabled = false;
+            EchoVolumeSlider.IsEnabled = false;
         }
         else
         {
             PitchSlider.IsEnabled = false;
-            RingModSlider.IsEnabled = true;
+            RingModSlider.IsEnabled = false;
+            EchoDelaySlider.IsEnabled = true;
+            EchoVolumeSlider.IsEnabled = true;
         }
     }
 
