@@ -69,6 +69,10 @@ public sealed class Pipeline : IDisposable
         set => _pitch.Semitones = value;
     }
 
+    /// <summary>
+    /// Maximum semitones the applied pitch may change per capture block. Pass-through to
+    /// <see cref="PitchEffect.RampSemitonesPerBlock"/>.
+    /// </summary>
     public float PitchRampRate
     {
         get => _pitch.RampSemitonesPerBlock;

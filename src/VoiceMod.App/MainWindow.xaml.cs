@@ -179,6 +179,9 @@ public partial class MainWindow : Window
         EchoVolumeRow.Visibility = echoVis;
     }
 
+    /// <summary>
+    /// Updates the ramp-rate label and applies the new value to the running pipeline's pitch ramp.
+    /// </summary>
     private void RampSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (RampLabel is null) return;
