@@ -30,35 +30,42 @@ public sealed class Pipeline : IDisposable
     /// </summary>
     /// <param name="input">The capture (input) audio device used for recording.</param>
     /// <param name="output">The render (output) audio device used for playback.</param>
-    /// <exception cref="NotSupportedException">Thrown when the capture device's wave format is not 32-bit IEEE float; the capture is disposed before this exception is thrown.</exception>
+    /// <exception cref="NotSupportedException">Thrown when the capture device's wave format is not 32-bit IEEE float.</exception>
     public Pipeline(MMDevice input, MMDevice output)
     {
         _capture = new WasapiCapture(input, useEventSync: true, audioBufferMillisecondsLength: CaptureBufferMs);
-
-        var format = _capture.WaveFormat;
-        if (format.Encoding != WaveFormatEncoding.IeeeFloat || format.BitsPerSample != 32)
+        WasapiOut? wasapiOut = null;
+        try
         {
-            _capture.Dispose();
-            throw new NotSupportedException(
-                $"Pipeline currently expects IEEE float 32-bit capture; device reports {format}.");
+            var format = _capture.WaveFormat;
+            if (format.Encoding != WaveFormatEncoding.IeeeFloat || format.BitsPerSample != 32)
+            {
+                throw new NotSupportedException(
+                    $"Pipeline currently expects IEEE float 32-bit capture; device reports {format}.");
+            }
+
+            _pitch = new PitchEffect(format.SampleRate, format.Channels);
+            _ringMod = new RingModEffect(format.SampleRate, format.Channels);
+            _echo = new EchoEffect(format.SampleRate, format.Channels);
+
+            _jitterBuffer = new BufferedWaveProvider(format)
+            {
+                BufferDuration = TimeSpan.FromMilliseconds(JitterBufferMs),
+                DiscardOnBufferOverflow = true,
+            };
+
+            wasapiOut = new WasapiOut(output, AudioClientShareMode.Shared, useEventSync: true, latency: RenderLatencyMs);
+
+            _capture.DataAvailable += OnCaptureDataAvailable;
+            wasapiOut.Init(_jitterBuffer);
+            _output = wasapiOut;
         }
-
-        _pitch = new PitchEffect(format.SampleRate, format.Channels);
-
-        _ringMod = new RingModEffect(format.SampleRate, format.Channels);
-
-        _echo = new EchoEffect(format.SampleRate, format.Channels);
-
-        _jitterBuffer = new BufferedWaveProvider(format)
+        catch
         {
-            BufferDuration = TimeSpan.FromMilliseconds(JitterBufferMs),
-            DiscardOnBufferOverflow = true,
-        };
-
-        _output = new WasapiOut(output, AudioClientShareMode.Shared, useEventSync: true, latency: RenderLatencyMs);
-
-        _capture.DataAvailable += OnCaptureDataAvailable;
-        _output.Init(_jitterBuffer);
+            wasapiOut?.Dispose();
+            _capture.Dispose();
+            throw;
+        }
     }
 
     public WaveFormat Format => _capture.WaveFormat;

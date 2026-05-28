@@ -22,26 +22,6 @@ Categories:
 
 ---
 
-### 3. `Pipeline` constructor doesn't dispose on partial failure — *Bug*
-
-**Problem.** Pipeline constructor creates `_capture` first, then validates the format, then creates `_pitch`, then `_jitterBuffer`, then `_output`. If anything after the first throws (e.g. `WasapiOut` fails because the output device is busy in exclusive mode somewhere else), the earlier objects are left undisposed → leaked WASAPI client.
-
-**Fix.** Wrap construction in try/catch, dispose what was created before re-throwing. Lives in [src/VoiceMod.Core/Pipeline.cs](src/VoiceMod.Core/Pipeline.cs).
-
-**Effort.** ~6 lines.
-
----
-
-### 4. `Start()` failure swallowed in App leaves pipeline in zombie state — *Bug*
-
-**Problem.** In [src/VoiceMod.App/MainWindow.xaml.cs](src/VoiceMod.App/MainWindow.xaml.cs) `StartButton_Click`, if `WasapiOut.Play` throws *after* the Pipeline is constructed, the catch block shows the error but `_pipeline` is left non-null and partially started. Next click of Start replaces it; the original never gets disposed.
-
-**Fix.** In the catch block, call `_pipeline?.Dispose()` and set to null before showing the error.
-
-**Effort.** ~2 lines.
-
----
-
 ### 5. Status line styling — *Polish*
 
 **Problem.** The single `StatusLabel` shows idle, running, and error states all in the same italic grey text. Users (especially the junior dev) can't tell at a glance if something went wrong.
