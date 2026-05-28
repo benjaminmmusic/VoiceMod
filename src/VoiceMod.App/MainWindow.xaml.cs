@@ -15,6 +15,43 @@ public partial class MainWindow : Window
         InitializeComponent();
         LoadDevices();
         EffectCombo.SelectedIndex = 0;
+        ApplySettings(SettingsStore.Load());
+    }
+
+    private static void SelectDeviceById(ComboBox combo, string? id)
+    {
+        if (id is null) return;
+        foreach (var item in combo.Items)
+        {
+            var device = (DeviceItem)item;
+            if (device.Device.ID == id)
+            {
+                combo.SelectedItem = device;
+                return;
+            }
+        }
+    }
+
+    private void ApplySettings(AppSettings settings)
+    {
+        SelectDeviceById(InputDeviceCombo, settings.InputDeviceId);
+        SelectDeviceById(OutputDeviceCombo, settings.OutputDeviceId);
+
+        if (Enum.TryParse<EffectMode>(settings.EffectMode, out var mode))
+        {
+            EffectCombo.SelectedIndex = (int)mode;
+        }
+
+        PitchSlider.Value = settings.PitchSemitones;
+        RampSlider.Value = settings.PitchRampRate;
+        RingModSlider.Value = settings.RingModFrequencyHz;
+        EchoDelaySlider.Value = settings.EchoDelayMs;
+        EchoVolumeSlider.Value = settings.EchoVolume;
+
+        if (settings.WindowLeft.HasValue) this.Left = settings.WindowLeft.Value;
+        if (settings.WindowTop.HasValue) this.Top = settings.WindowTop.Value;
+        if (settings.WindowWidth.HasValue) this.Width = settings.WindowWidth.Value;
+        if (settings.WindowHeight.HasValue) this.Height = settings.WindowHeight.Value;
     }
 
     private void LoadDevices()
@@ -194,6 +231,22 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        SettingsStore.Save(new AppSettings
+        {
+            InputDeviceId = (InputDeviceCombo.SelectedItem as DeviceItem)?.Device.ID,
+            OutputDeviceId = (OutputDeviceCombo.SelectedItem as DeviceItem)?.Device.ID,
+            EffectMode = ((EffectMode)EffectCombo.SelectedIndex).ToString(),
+            PitchSemitones = (int)PitchSlider.Value,
+            PitchRampRate = (float)RampSlider.Value,
+            RingModFrequencyHz = (int)RingModSlider.Value,
+            EchoDelayMs = (float)EchoDelaySlider.Value,
+            EchoVolume = (float)EchoVolumeSlider.Value,
+            WindowLeft = this.Left,
+            WindowTop = this.Top,
+            WindowWidth = this.Width,
+            WindowHeight = this.Height,
+        });
+
         _pipeline?.Stop();
         _pipeline?.Dispose();
         _enumerator.Dispose();
