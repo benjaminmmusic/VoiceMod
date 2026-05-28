@@ -62,8 +62,24 @@ public sealed class Pipeline : IDisposable
         }
         catch
         {
-            wasapiOut?.Dispose();
-            _capture.Dispose();
+            try
+            {
+                wasapiOut?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Pipeline ctor cleanup: wasapiOut.Dispose failed: {ex}");
+            }
+
+            try
+            {
+                _capture.Dispose();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Pipeline ctor cleanup: _capture.Dispose failed: {ex}");
+            }
+
             throw;
         }
     }
